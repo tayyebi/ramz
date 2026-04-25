@@ -4,9 +4,7 @@ use crate::crypto::{
     verify_master_password,
 };
 use crate::error::{ApiResult, AppError};
-use crate::models::{
-    Argon2Params, PlaintextVault, VaultFile, VaultMetadata,
-};
+use crate::models::{Argon2Params, PlaintextVault, VaultFile, VaultMetadata};
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;

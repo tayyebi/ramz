@@ -144,28 +144,124 @@ export function parsePassbolt(text: string): ImportedEntry[] {
 }
 
 // ---------------------------------------------------------------------------
+// KeePass CSV  (KeePassXC export: Group,Title,Username,Password,URL,Notes,…)
+// ---------------------------------------------------------------------------
+export function parseKeePassCSV(text: string): ImportedEntry[] {
+  return parseCSV(text)
+    .filter((r) => r['password'])
+    .map((r) => ({
+      title: r['title'] || r['url'] || 'Imported',
+      username: r['username'] || '',
+      password: r['password'],
+      url: r['url'] || undefined,
+      notes: r['notes'] || undefined,
+    }));
+}
+
+// ---------------------------------------------------------------------------
+// KeePass XML  (KeePass 2.x / KeePassXC "Export as XML" — unencrypted)
+// ---------------------------------------------------------------------------
+export function parseKeePassXML(text: string): ImportedEntry[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('Invalid KeePass XML file');
+  const entries: ImportedEntry[] = [];
+  for (const node of doc.querySelectorAll('Entry')) {
+    const strings: Record<string, string> = {};
+    for (const strNode of node.querySelectorAll(':scope > String')) {
+      const key = strNode.querySelector('Key')?.textContent ?? '';
+      const value = strNode.querySelector('Value')?.textContent ?? '';
+      strings[key] = value;
+    }
+    const password = strings['Password'];
+    if (!password) continue;
+    entries.push({
+      title: strings['Title'] || strings['URL'] || 'Imported',
+      username: strings['UserName'] || '',
+      password,
+      url: strings['URL'] || undefined,
+      notes: strings['Notes'] || undefined,
+    });
+  }
+  return entries;
+}
+
+// ---------------------------------------------------------------------------
+// KeePass XML export  (KeePass 2.x compatible, importable by KeePassXC)
+// ---------------------------------------------------------------------------
+export function exportKeePassXML(entries: ImportedEntry[]): string {
+  const esc = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const entryXML = entries
+    .map(
+      (e) =>
+        `\n    <Entry>\n` +
+        `      <String><Key>Title</Key><Value>${esc(e.title)}</Value></String>\n` +
+        `      <String><Key>UserName</Key><Value>${esc(e.username)}</Value></String>\n` +
+        `      <String><Key>Password</Key><Value>${esc(e.password)}</Value></String>\n` +
+        `      <String><Key>URL</Key><Value>${esc(e.url ?? '')}</Value></String>\n` +
+        `      <String><Key>Notes</Key><Value>${esc(e.notes ?? '')}</Value></String>\n` +
+        `    </Entry>`,
+    )
+    .join('');
+  return (
+    `<?xml version="1.0" encoding="utf-8"?>\n` +
+    `<KeePassFile>\n` +
+    `  <Meta><Generator>Ramz</Generator></Meta>\n` +
+    `  <Root>\n` +
+    `    <Group>\n` +
+    `      <Name>ramz-export</Name>${entryXML}\n` +
+    `    </Group>\n` +
+    `  </Root>\n` +
+    `</KeePassFile>`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Auto-detect format from filename + content
 // ---------------------------------------------------------------------------
-export type ImportFormat = 'chrome' | 'firefox' | 'bitwarden' | 'passbolt';
+export type ImportFormat = 'chrome' | 'firefox' | 'bitwarden' | 'passbolt' | 'keepass';
 
 export function detectFormat(filename: string, text: string): ImportFormat {
   const lower = filename.toLowerCase();
+  if (lower.endsWith('.xml')) return 'keepass';
   if (lower.endsWith('.json')) return 'bitwarden';
 
   // Only inspect the first (header) line of the CSV for column names
   const firstLine = (text.split(/\r?\n/)[0] ?? '').toLowerCase();
+  if (firstLine.startsWith('group,title') || firstLine.startsWith('"group","title"'))
+    return 'keepass';
   if (firstLine.includes('httprealm') || firstLine.includes('formactionorigin'))
     return 'firefox';
-  if (firstLine.includes(',otp,') || firstLine.includes(',tags,') || firstLine.startsWith('"otp"') || firstLine.startsWith('"tags"'))
+  if (
+    firstLine.includes(',otp,') ||
+    firstLine.includes(',tags,') ||
+    firstLine.startsWith('"otp"') ||
+    firstLine.startsWith('"tags"')
+  )
     return 'passbolt';
   return 'chrome'; // default CSV fallback
 }
 
 export function parseImport(format: ImportFormat, text: string): ImportedEntry[] {
   switch (format) {
-    case 'chrome':    return parseChrome(text);
-    case 'firefox':   return parseFirefox(text);
-    case 'bitwarden': return parseBitwarden(text);
-    case 'passbolt':  return parsePassbolt(text);
+    case 'chrome':
+      return parseChrome(text);
+    case 'firefox':
+      return parseFirefox(text);
+    case 'bitwarden':
+      return parseBitwarden(text);
+    case 'passbolt':
+      return parsePassbolt(text);
+    case 'keepass': {
+      const t = text.trim();
+      return t.startsWith('<?xml') || t.startsWith('<KeePassFile')
+        ? parseKeePassXML(text)
+        : parseKeePassCSV(text);
+    }
   }
 }

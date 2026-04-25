@@ -3,7 +3,9 @@ import { api } from '../../shared/api';
 import { storage, DEFAULT_SERVER_URL } from '../../shared/storage';
 import {
   detectFormat,
+  exportKeePassXML,
   parseImport,
+  type ImportedEntry,
   type ImportFormat,
 } from '../../shared/importParser';
 
@@ -16,6 +18,7 @@ const FORMAT_LABELS: Record<ImportFormat, string> = {
   firefox: 'Mozilla Firefox (CSV)',
   bitwarden: 'Bitwarden (JSON)',
   passbolt: 'Passbolt (CSV)',
+  keepass: 'KeePass / KeePassXC (CSV or XML)',
 };
 
 export default function Settings({ onLogout }: Props) {
@@ -29,13 +32,21 @@ export default function Settings({ onLogout }: Props) {
   const [serverUrl, setServerUrl] = useState('');
   const [serverUrlSaved, setServerUrlSaved] = useState(false);
 
-  // Import state
+  // Password import state
   const [showImport, setShowImport] = useState(false);
   const [importFormat, setImportFormat] = useState<ImportFormat>('chrome');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // MFA import state
+  const [showMfaImport, setShowMfaImport] = useState(false);
+  const [mfaUri, setMfaUri] = useState('');
+  const [mfaImportFile, setMfaImportFile] = useState<File | null>(null);
+  const [mfaImporting, setMfaImporting] = useState(false);
+  const [mfaImportResult, setMfaImportResult] = useState('');
+  const mfaFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void api.vaultStatus().then(setVaultInfo).catch(() => null);
@@ -65,6 +76,37 @@ export default function Settings({ onLogout }: Props) {
       a.click();
       URL.revokeObjectURL(url);
       setExportMsg('Vault exported successfully.');
+    } catch (err) {
+      setExportMsg(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportKeePass = async () => {
+    setExporting(true);
+    setExportMsg('');
+    try {
+      const entries = await api.listEntries();
+      const xmlData = exportKeePassXML(
+        entries.map(
+          (e): ImportedEntry => ({
+            title: e.title,
+            username: e.username,
+            password: e.password,
+            url: e.url,
+            notes: e.notes,
+          }),
+        ),
+      );
+      const blob = new Blob([xmlData], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ramz-vault-${new Date().toISOString().slice(0, 10)}.xml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setExportMsg('KeePass XML exported successfully.');
     } catch (err) {
       setExportMsg(err instanceof Error ? err.message : 'Export failed');
     } finally {
@@ -118,13 +160,72 @@ export default function Settings({ onLogout }: Props) {
         `Imported ${imported} entr${imported === 1 ? 'y' : 'ies'}` +
           (failed > 0 ? `, ${failed} failed.` : '.'),
       );
-      // Reset file input
       setImportFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setImportResult(err instanceof Error ? err.message : 'Import failed');
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleImportMfaUri = async () => {
+    const uri = mfaUri.trim();
+    if (!uri) return;
+    setMfaImporting(true);
+    setMfaImportResult('');
+    try {
+      await api.importMfaUri(uri);
+      setMfaUri('');
+      setMfaImportResult('MFA entry imported.');
+    } catch (err) {
+      setMfaImportResult(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setMfaImporting(false);
+    }
+  };
+
+  const handleImportMfaFile = async () => {
+    if (!mfaImportFile) return;
+    setMfaImporting(true);
+    setMfaImportResult('');
+    try {
+      const text = await mfaImportFile.text();
+      let uris: string[];
+      if (mfaImportFile.name.toLowerCase().endsWith('.json')) {
+        const parsed = JSON.parse(text) as unknown;
+        if (!Array.isArray(parsed)) throw new Error('Expected a JSON array of OTP URIs');
+        uris = parsed.filter((u): u is string => typeof u === 'string');
+      } else {
+        uris = text
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l.startsWith('otpauth://'));
+      }
+      if (uris.length === 0) {
+        setMfaImportResult('No OTP URIs found in the file.');
+        return;
+      }
+      let imported = 0;
+      let failed = 0;
+      for (const uri of uris) {
+        try {
+          await api.importMfaUri(uri);
+          imported++;
+        } catch {
+          failed++;
+        }
+      }
+      setMfaImportResult(
+        `Imported ${imported} MFA entr${imported === 1 ? 'y' : 'ies'}` +
+          (failed > 0 ? `, ${failed} failed.` : '.'),
+      );
+      setMfaImportFile(null);
+      if (mfaFileInputRef.current) mfaFileInputRef.current.value = '';
+    } catch (err) {
+      setMfaImportResult(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setMfaImporting(false);
     }
   };
 
@@ -172,16 +273,24 @@ export default function Settings({ onLogout }: Props) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
+        {/* ── Export ── */}
         <button
           className="btn btn-secondary"
           onClick={() => void handleExport()}
           disabled={exporting}
         >
-          {exporting ? 'Exporting...' : '⬇️ Export Vault'}
+          {exporting ? 'Exporting...' : '⬇️ Export Vault (JSON)'}
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => void handleExportKeePass()}
+          disabled={exporting}
+        >
+          {exporting ? 'Exporting...' : '⬇️ Export as KeePass XML'}
         </button>
         {exportMsg && <p style={{ fontSize: 12, color: '#64748b' }}>{exportMsg}</p>}
 
-        {/* ── Import ── */}
+        {/* ── Import Passwords ── */}
         <button
           className="btn btn-secondary"
           onClick={() => {
@@ -231,13 +340,13 @@ export default function Settings({ onLogout }: Props) {
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label htmlFor="import-file" style={{ fontSize: 12 }}>
-                File (.csv or .json)
+                File (.csv, .json, or .xml)
               </label>
               <input
                 id="import-file"
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.json,text/csv,application/json"
+                accept=".csv,.json,.xml,text/csv,application/json,application/xml"
                 onChange={handleFileChange}
                 style={{ marginTop: 4, fontSize: 13, width: '100%' }}
               />
@@ -262,6 +371,101 @@ export default function Settings({ onLogout }: Props) {
             >
               {importing ? 'Importing…' : `Import from ${FORMAT_LABELS[importFormat]}`}
             </button>
+          </div>
+        )}
+
+        {/* ── Import MFA Codes ── */}
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            setShowMfaImport((v) => !v);
+            setMfaImportResult('');
+          }}
+        >
+          🔑 Import MFA Codes
+        </button>
+
+        {showMfaImport && (
+          <div
+            style={{
+              border: '1px solid #e2e8f0',
+              borderRadius: 8,
+              padding: 12,
+              background: '#f8fafc',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="mfa-uri" style={{ fontSize: 12 }}>
+                OTP Auth URI
+              </label>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                <input
+                  id="mfa-uri"
+                  type="text"
+                  value={mfaUri}
+                  onChange={(e) => setMfaUri(e.target.value)}
+                  placeholder="otpauth://totp/..."
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    padding: '4px 8px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 4,
+                    fontFamily: 'inherit',
+                  }}
+                />
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void handleImportMfaUri()}
+                  disabled={!mfaUri.trim() || mfaImporting}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {mfaImporting ? '…' : 'Import'}
+                </button>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="mfa-file" style={{ fontSize: 12 }}>
+                Batch import (.txt or .json with OTP URIs)
+              </label>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
+                <input
+                  id="mfa-file"
+                  ref={mfaFileInputRef}
+                  type="file"
+                  accept=".txt,.json,text/plain,application/json"
+                  onChange={(e) => {
+                    setMfaImportFile(e.target.files?.[0] ?? null);
+                    setMfaImportResult('');
+                  }}
+                  style={{ flex: 1, fontSize: 13 }}
+                />
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void handleImportMfaFile()}
+                  disabled={!mfaImportFile || mfaImporting}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  {mfaImporting ? 'Importing…' : 'Import File'}
+                </button>
+              </div>
+            </div>
+
+            {mfaImportResult && (
+              <p
+                style={{
+                  fontSize: 12,
+                  color: mfaImportResult.toLowerCase().includes('fail') ? '#ef4444' : '#16a34a',
+                  margin: 0,
+                }}
+              >
+                {mfaImportResult}
+              </p>
+            )}
           </div>
         )}
 

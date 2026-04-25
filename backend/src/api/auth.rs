@@ -31,12 +31,15 @@ pub async fn setup(
     State(state): State<AppState>,
     Json(req): Json<SetupRequest>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!("Setup request received");
+
     let vault_exists = {
         let vault = state.vault.read().await;
         vault.vault_exists()
     };
 
     if vault_exists {
+        tracing::warn!("Setup rejected: vault already initialised");
         return Err(AppError::Conflict("Vault already initialized".to_string()));
     }
 
@@ -47,6 +50,8 @@ pub async fn setup(
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
+    tracing::info!("Vault initialised successfully");
+
     let session = state.sessions.create_session();
     let access_token = state
         .auth
@@ -56,6 +61,8 @@ pub async fn setup(
         .auth
         .generate_refresh_token()
         .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    tracing::info!(session_id = %session.id, "Setup completed, session created");
 
     Ok(Json(json!({
         "access_token": access_token,
@@ -70,7 +77,10 @@ pub async fn unlock(
 ) -> ApiResult<Json<Value>> {
     let identifier = "unlock";
 
+    tracing::debug!("Unlock request received");
+
     if state.sessions.is_rate_limited(identifier) {
+        tracing::warn!("Unlock request rate-limited");
         return Err(AppError::TooManyRequests);
     }
 
@@ -91,6 +101,7 @@ pub async fn unlock(
     };
 
     if !success {
+        tracing::warn!("Unlock failed: invalid master password");
         state.sessions.record_failed_attempt(identifier);
         return Err(AppError::Unauthorized(
             "Invalid master password".to_string(),
@@ -109,6 +120,8 @@ pub async fn unlock(
         .generate_refresh_token()
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
+    tracing::info!(session_id = %session.id, "Vault unlocked, session created");
+
     Ok(Json(json!({
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -117,6 +130,8 @@ pub async fn unlock(
 }
 
 pub async fn lock(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Json<Value>> {
+    tracing::debug!("Lock request received");
+
     extract_session_id(&state, &headers)?;
 
     {
@@ -126,6 +141,8 @@ pub async fn lock(State(state): State<AppState>, headers: HeaderMap) -> ApiResul
 
     state.sessions.invalidate_all_sessions();
 
+    tracing::info!("Vault locked, all sessions invalidated");
+
     Ok(Json(json!({ "message": "Vault locked" })))
 }
 
@@ -133,6 +150,8 @@ pub async fn refresh(
     State(state): State<AppState>,
     Json(req): Json<RefreshRequest>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!("Token refresh request received");
+
     let claims = state.auth.validate_refresh_token(&req.refresh_token)?;
 
     let session = state.sessions.create_session();
@@ -146,6 +165,8 @@ pub async fn refresh(
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
     let _ = claims;
+
+    tracing::debug!(session_id = %session.id, "Token refreshed, new session created");
 
     Ok(Json(json!({
         "access_token": access_token,

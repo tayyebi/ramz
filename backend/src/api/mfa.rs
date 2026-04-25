@@ -64,6 +64,8 @@ fn decrypt_mfa(entry: &MfaEntry, key: &[u8]) -> ApiResult<MfaResponse> {
 }
 
 pub async fn list_mfa(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Json<Value>> {
+    tracing::debug!("List MFA entries request");
+
     extract_session_id(&state, &headers)?;
 
     let vault = state.vault.read().await;
@@ -76,6 +78,8 @@ pub async fn list_mfa(State(state): State<AppState>, headers: HeaderMap) -> ApiR
         .map(|e| decrypt_mfa(e, key.as_ref()))
         .collect::<ApiResult<Vec<_>>>()?;
 
+    tracing::debug!(count = entries.len(), "MFA entries listed");
+
     Ok(Json(json!({ "entries": entries })))
 }
 
@@ -84,6 +88,8 @@ pub async fn create_mfa(
     headers: HeaderMap,
     Json(req): Json<CreateMfaRequest>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(account = %req.account_name, "Create MFA entry request");
+
     extract_session_id(&state, &headers)?;
 
     let now = Utc::now();
@@ -121,6 +127,8 @@ pub async fn create_mfa(
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
+    tracing::info!(entry_id = %entry_id, account = %response.account_name, "MFA entry created");
+
     Ok(Json(json!({ "entry": response })))
 }
 
@@ -129,6 +137,8 @@ pub async fn delete_mfa(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(%id, "Delete MFA entry request");
+
     extract_session_id(&state, &headers)?;
 
     let mut vault = state.vault.write().await;
@@ -146,6 +156,8 @@ pub async fn delete_mfa(
         .save()
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
+    tracing::info!(%id, "MFA entry deleted");
+
     Ok(Json(json!({ "message": "MFA entry deleted" })))
 }
 
@@ -154,6 +166,8 @@ pub async fn generate_totp(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
+    tracing::trace!(%id, "Generate TOTP request");
+
     extract_session_id(&state, &headers)?;
 
     let vault = state.vault.read().await;
@@ -205,6 +219,8 @@ pub async fn import_mfa_uri(
     headers: HeaderMap,
     Json(req): Json<ImportMfaUriRequest>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!("Import MFA URI request");
+
     extract_session_id(&state, &headers)?;
 
     let params = parse_otpauth_uri(&req.uri)
@@ -246,6 +262,8 @@ pub async fn import_mfa_uri(
             .save()
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
+
+    tracing::info!(entry_id = %entry_id, account = %response.account_name, "MFA entry imported from URI");
 
     Ok(Json(json!({ "entry": response })))
 }

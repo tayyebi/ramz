@@ -6,6 +6,7 @@ use axum::{extract::State, http::HeaderMap, Json};
 use serde_json::{json, Value};
 
 pub async fn vault_status(State(state): State<AppState>) -> Json<Value> {
+    tracing::trace!("Vault status requested");
     let vault = state.vault.read().await;
     Json(json!({
         "initialized": vault.vault_exists(),
@@ -17,6 +18,7 @@ pub async fn export_vault(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> ApiResult<Json<Value>> {
+    tracing::info!("Vault export requested");
     extract_session_id(&state, &headers)?;
 
     let vault = state.vault.read().await;
@@ -69,6 +71,12 @@ pub async fn export_vault(
             "linked_password_entry_id": entry.linked_password_entry_id,
         }));
     }
+
+    tracing::info!(
+        password_entries = decrypted_entries.len(),
+        mfa_entries = decrypted_mfa.len(),
+        "Vault exported"
+    );
 
     Ok(Json(json!({
         "format": "ramz",

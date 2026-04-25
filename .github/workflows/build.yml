@@ -157,7 +157,7 @@ jobs:
       - name: Build extension
         run: npm run build
 
-      - name: Package Chrome extension (.zip)
+      - name: Prepare extension dist
         run: |
           cp manifest.json dist/
           mkdir -p dist/icons
@@ -169,24 +169,12 @@ jobs:
               cp icons/icon${size}.png dist/icons/
             fi
           done
-          cd dist && zip -r ../ramz-extension-chrome.zip . -x "*.map"
 
-      - name: Package Firefox extension (.xpi)
-        run: |
-          cp ramz-extension-chrome.zip ramz-extension-firefox.xpi
-
-      - name: Upload Chrome extension
+      - name: Upload extension
         uses: actions/upload-artifact@v4
         with:
-          name: ramz-extension-chrome
-          path: extension/ramz-extension-chrome.zip
-          retention-days: 30
-
-      - name: Upload Firefox extension
-        uses: actions/upload-artifact@v4
-        with:
-          name: ramz-extension-firefox
-          path: extension/ramz-extension-firefox.xpi
+          name: ramz-extension
+          path: extension/dist
           retention-days: 30
 
   # ──────────────────────────────────────────────

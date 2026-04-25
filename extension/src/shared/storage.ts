@@ -1,7 +1,10 @@
+export const DEFAULT_SERVER_URL = 'http://localhost:8080';
+
 export interface StoredData {
   access_token?: string;
   refresh_token?: string;
   token_expires_at?: number;
+  server_url?: string;
 }
 
 export const storage = {

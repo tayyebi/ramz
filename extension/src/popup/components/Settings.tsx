@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../shared/api';
-import { storage } from '../../shared/storage';
+import { storage, DEFAULT_SERVER_URL } from '../../shared/storage';
 
 interface Props {
   onLogout: () => void;
@@ -14,10 +14,22 @@ export default function Settings({ onLogout }: Props) {
   } | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState('');
+  const [serverUrl, setServerUrl] = useState('');
+  const [serverUrlSaved, setServerUrlSaved] = useState(false);
 
   useEffect(() => {
     void api.vaultStatus().then(setVaultInfo).catch(() => null);
+    void storage.get(['server_url']).then((data) => {
+      setServerUrl(data.server_url || DEFAULT_SERVER_URL);
+    });
   }, []);
+
+  const handleSaveServerUrl = async () => {
+    const trimmed = serverUrl.trim();
+    await storage.set({ server_url: trimmed || DEFAULT_SERVER_URL });
+    setServerUrlSaved(true);
+    setTimeout(() => setServerUrlSaved(false), 2000);
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -45,8 +57,28 @@ export default function Settings({ onLogout }: Props) {
 
       <div className="detail-field">
         <label>Backend URL</label>
-        <div className="detail-field-value">
-          <span style={{ fontFamily: 'inherit', fontSize: 13 }}>http://localhost:8080</span>
+        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+          <input
+            type="text"
+            value={serverUrl}
+            onChange={(e) => setServerUrl(e.target.value)}
+            placeholder={DEFAULT_SERVER_URL}
+            style={{
+              flex: 1,
+              fontSize: 13,
+              padding: '4px 8px',
+              border: '1px solid #cbd5e1',
+              borderRadius: 4,
+              fontFamily: 'inherit',
+            }}
+          />
+          <button
+            className="btn btn-secondary"
+            onClick={() => void handleSaveServerUrl()}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {serverUrlSaved ? '✓ Saved' : 'Save'}
+          </button>
         </div>
       </div>
 

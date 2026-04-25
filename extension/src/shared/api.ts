@@ -1,6 +1,13 @@
 import type { PasswordEntry, MfaEntry, AuthTokens, TotpCode } from './types';
+import { DEFAULT_SERVER_URL } from './storage';
 
-const BASE_URL = 'http://localhost:8080/api';
+async function getBaseUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['server_url'], (result) => {
+      resolve(((result['server_url'] as string) || DEFAULT_SERVER_URL).replace(/\/$/, '') + '/api');
+    });
+  });
+}
 
 async function getToken(): Promise<string | null> {
   return new Promise((resolve) => {
@@ -11,14 +18,14 @@ async function getToken(): Promise<string | null> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = await getToken();
+  const [baseUrl, token] = await Promise.all([getBaseUrl(), getToken()]);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const resp = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const resp = await fetch(`${baseUrl}${path}`, { ...options, headers });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: { code: 'UNKNOWN', message: resp.statusText } }));
     throw new Error((err as { error?: { message?: string } })?.error?.message || resp.statusText);

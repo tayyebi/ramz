@@ -18,15 +18,16 @@ export const storage = {
 
   clear: (): Promise<void> => new Promise((resolve) => chrome.storage.local.clear(resolve)),
 
-  saveTokens: async (tokens: {
-    access_token: string;
-    refresh_token: string;
-    expires_in: number;
-  }): Promise<void> => {
+  saveTokens: async (
+    tokens: { access_token: string; refresh_token: string; expires_in: number },
+    remember = true,
+  ): Promise<void> => {
     await storage.set({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      token_expires_at: Date.now() + tokens.expires_in * 1000,
+      // When remember=false the token expires immediately so next popup open
+      // will require the master password again.
+      token_expires_at: remember ? Date.now() + tokens.expires_in * 1000 : 0,
     });
   },
 };

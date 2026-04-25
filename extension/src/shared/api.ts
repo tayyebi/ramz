@@ -58,23 +58,42 @@ export const api = {
       body: JSON.stringify({ refresh_token: refreshToken }),
     }),
   listEntries: (search?: string) =>
-    request<PasswordEntry[]>(
+    request<{ entries: PasswordEntry[]; total: number }>(
       `/vault/entries${search ? `?search=${encodeURIComponent(search)}` : ''}`
-    ),
-  getEntry: (id: string) => request<PasswordEntry>(`/vault/entries/${id}`),
+    ).then((r) => r.entries),
+  getEntry: (id: string) =>
+    request<{ entry: PasswordEntry }>(`/vault/entries/${id}`).then((r) => r.entry),
   createEntry: (entry: Omit<PasswordEntry, 'id' | 'created_at' | 'updated_at'>) =>
-    request<PasswordEntry>('/vault/entries', { method: 'POST', body: JSON.stringify(entry) }),
+    request<{ entry: PasswordEntry }>('/vault/entries', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
   updateEntry: (id: string, entry: Partial<PasswordEntry>) =>
-    request<PasswordEntry>(`/vault/entries/${id}`, { method: 'PUT', body: JSON.stringify(entry) }),
+    request<{ entry: PasswordEntry }>(`/vault/entries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
   deleteEntry: (id: string) =>
     request<{ message: string }>(`/vault/entries/${id}`, { method: 'DELETE' }),
-  listMfa: () => request<MfaEntry[]>('/vault/mfa'),
+  listMfa: () =>
+    request<{ entries: MfaEntry[] }>('/vault/mfa').then((r) => r.entries),
   createMfa: (entry: Omit<MfaEntry, 'id' | 'created_at'> & { secret: string }) =>
-    request<MfaEntry>('/vault/mfa', { method: 'POST', body: JSON.stringify(entry) }),
+    request<{ entry: MfaEntry }>('/vault/mfa', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
   deleteMfa: (id: string) =>
     request<{ message: string }>(`/vault/mfa/${id}`, { method: 'DELETE' }),
   getTotp: (id: string) => request<TotpCode>(`/vault/mfa/${id}/totp`),
   importMfaUri: (uri: string) =>
-    request<MfaEntry>('/vault/mfa/import', { method: 'POST', body: JSON.stringify({ uri }) }),
+    request<{ entry: MfaEntry }>('/vault/mfa/import', {
+      method: 'POST',
+      body: JSON.stringify({ uri }),
+    }).then((r) => r.entry),
   exportVault: () => request<unknown>('/vault/export'),
+  importVault: (data: unknown) =>
+    request<{ message: string; imported_count: number }>('/vault/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

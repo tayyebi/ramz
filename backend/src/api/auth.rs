@@ -67,7 +67,8 @@ pub async fn setup(
     Ok(Json(json!({
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "session_id": session.id
+        "session_id": session.id,
+        "expires_in": state.config.security.jwt_expiration_minutes * 60
     })))
 }
 
@@ -125,7 +126,8 @@ pub async fn unlock(
     Ok(Json(json!({
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "session_id": session.id
+        "session_id": session.id,
+        "expires_in": state.config.security.jwt_expiration_minutes * 60
     })))
 }
 
@@ -171,7 +173,8 @@ pub async fn refresh(
     Ok(Json(json!({
         "access_token": access_token,
         "refresh_token": new_refresh_token,
-        "session_id": session.id
+        "session_id": session.id,
+        "expires_in": state.config.security.jwt_expiration_minutes * 60
     })))
 }
 

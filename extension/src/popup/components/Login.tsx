@@ -16,6 +16,7 @@ export default function Login({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
   const [serverUrlSaved, setServerUrlSaved] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   useEffect(() => {
     void storage.get(['server_url']).then((data) => {
@@ -57,7 +58,7 @@ export default function Login({ onSuccess }: Props) {
     try {
       const tokens =
         state === 'setup' ? await api.setup(password) : await api.unlock(password);
-      await storage.saveTokens(tokens);
+      await storage.saveTokens(tokens, rememberMe);
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
@@ -130,6 +131,18 @@ export default function Login({ onSuccess }: Props) {
             />
           </div>
         )}
+        <div className="checkbox-row" style={{ marginBottom: 12 }}>
+          <input
+            id="remember-me"
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            disabled={loading}
+          />
+          <label htmlFor="remember-me" style={{ cursor: 'pointer', userSelect: 'none' }}>
+            Stay unlocked between sessions
+          </label>
+        </div>
         {error && <p className="error-msg">{error}</p>}
         <button
           type="submit"

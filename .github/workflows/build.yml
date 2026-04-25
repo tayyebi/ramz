@@ -170,15 +170,26 @@ jobs:
             fi
           done
 
-      - name: Package extension as .xpi
+      - name: Package extension as .xpi (Firefox)
         run: |
-          cd dist && zip -r ../ramz-extension.xpi . && cd ..
+          cd dist && zip -r ../ramz-firefox.xpi . && cd ..
 
-      - name: Upload extension
+      - name: Package extension as .crx (Chrome)
+        run: |
+          npx --yes crx3 dist -o ramz-chrome.crx
+
+      - name: Upload Firefox extension (.xpi)
         uses: actions/upload-artifact@v4
         with:
-          name: ramz-extension
-          path: extension/ramz-extension.xpi
+          name: ramz-firefox-xpi
+          path: extension/ramz-firefox.xpi
+          retention-days: 30
+
+      - name: Upload Chrome extension (.crx)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ramz-chrome-crx
+          path: extension/ramz-chrome.crx
           retention-days: 30
 
   # ──────────────────────────────────────────────

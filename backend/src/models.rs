@@ -57,18 +57,13 @@ pub struct MfaEntry {
     pub linked_password_entry_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TotpAlgorithm {
+    #[default]
     Sha1,
     Sha256,
     Sha512,
-}
-
-impl Default for TotpAlgorithm {
-    fn default() -> Self {
-        TotpAlgorithm::Sha1
-    }
 }
 
 impl FromStr for TotpAlgorithm {

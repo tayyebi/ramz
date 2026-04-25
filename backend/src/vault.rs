@@ -1,16 +1,16 @@
 use crate::config::AppConfig;
 use crate::crypto::{
-    decrypt, derive_key, encrypt, generate_salt, get_encryption_key, hash_master_password,
+    decrypt, encrypt, generate_salt, get_encryption_key, hash_master_password,
     verify_master_password,
 };
 use crate::error::{ApiResult, AppError};
 use crate::models::{
-    Argon2Params, MfaEntry, PasswordEntry, PlaintextVault, VaultFile, VaultMetadata,
+    Argon2Params, PlaintextVault, VaultFile, VaultMetadata,
 };
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use zeroize::Zeroizing;
 
 pub struct VaultManager {

@@ -1,7 +1,7 @@
 use crate::api::auth::extract_session_id;
 use crate::crypto::{decrypt, encrypt};
 use crate::error::{ApiResult, AppError};
-use crate::models::{CustomField, EncryptedField, PasswordEntry};
+use crate::models::{CustomField, PasswordEntry};
 use crate::AppState;
 use axum::{
     extract::{Path, Query, State},
@@ -155,7 +155,7 @@ pub async fn list_entries(
                     .unwrap_or("")
                     .to_lowercase()
                     .contains(&search_lower)
-                || e.tags.as_ref().map_or(false, |tags| {
+                || e.tags.as_ref().is_some_and(|tags| {
                     tags.iter()
                         .any(|t| t.to_lowercase().contains(&search_lower))
                 })
@@ -169,7 +169,7 @@ pub async fn list_entries(
 
     // Tag filter
     if let Some(tag) = &query.tag {
-        entries.retain(|e| e.tags.as_ref().map_or(false, |tags| tags.contains(tag)));
+        entries.retain(|e| e.tags.as_ref().is_some_and(|tags| tags.contains(tag)));
     }
 
     // Sort

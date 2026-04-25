@@ -12,25 +12,26 @@ use tempfile::TempDir;
 use tokio::sync::RwLock;
 
 fn create_test_config(data_dir: &str) -> AppConfig {
-    let mut config = AppConfig::default();
-    config.security = SecurityConfig {
-        jwt_secret: Some("test-secret-key-for-integration-tests".to_string()),
-        jwt_expiration_minutes: 60,
-        refresh_token_expiration_days: 7,
-        inactivity_timeout_minutes: 60,
-        max_failed_attempts: 10,
-        argon2: Argon2Config {
-            memory_kib: 1024,
-            iterations: 1,
-            parallelism: 1,
+    AppConfig {
+        security: SecurityConfig {
+            jwt_secret: Some("test-secret-key-for-integration-tests".to_string()),
+            jwt_expiration_minutes: 60,
+            refresh_token_expiration_days: 7,
+            inactivity_timeout_minutes: 60,
+            max_failed_attempts: 10,
+            argon2: Argon2Config {
+                memory_kib: 1024,
+                iterations: 1,
+                parallelism: 1,
+            },
         },
-    };
-    config.storage = StorageConfig {
-        data_dir: data_dir.to_string(),
-        auto_backup: false,
-        backup_retention_days: 30,
-    };
-    config
+        storage: StorageConfig {
+            data_dir: data_dir.to_string(),
+            auto_backup: false,
+            backup_retention_days: 30,
+        },
+        ..Default::default()
+    }
 }
 
 fn create_test_server() -> (TestServer, TempDir) {
@@ -134,7 +135,7 @@ async fn test_unlock_wrong_password() {
     server
         .post("/api/auth/lock")
         .add_header(axum::http::header::AUTHORIZATION, {
-            let setup_resp = server
+            let _setup_resp = server
                 .post("/api/auth/setup")
                 .json(&json!({ "master_password": "AnotherPass!" }))
                 .await;

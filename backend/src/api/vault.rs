@@ -1,7 +1,6 @@
 use crate::api::auth::extract_session_id;
 use crate::crypto::{decrypt, encrypt};
 use crate::error::{ApiResult, AppError};
-use crate::models::PlaintextVault;
 use crate::AppState;
 use axum::{extract::State, http::HeaderMap, Json};
 use serde_json::{json, Value};

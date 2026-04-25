@@ -3,7 +3,7 @@ use crate::error::{ApiResult, AppError};
 use crate::models::EncryptedField;
 use anyhow::Result;
 use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2, Params, Version,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};

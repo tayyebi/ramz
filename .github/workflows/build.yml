@@ -170,11 +170,15 @@ jobs:
             fi
           done
 
+      - name: Package extension as .xpi
+        run: |
+          cd dist && zip -r ../ramz-extension.xpi . && cd ..
+
       - name: Upload extension
         uses: actions/upload-artifact@v4
         with:
           name: ramz-extension
-          path: extension/dist
+          path: extension/ramz-extension.xpi
           retention-days: 30
 
   # ──────────────────────────────────────────────

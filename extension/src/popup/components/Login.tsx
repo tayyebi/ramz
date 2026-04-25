@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../shared/api';
-import { storage } from '../../shared/storage';
+import { storage, DEFAULT_SERVER_URL } from '../../shared/storage';
 
 type LoginState = 'checking' | 'setup' | 'unlock';
 
@@ -14,8 +14,13 @@ export default function Login({ onSuccess }: Props) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [serverUrl, setServerUrl] = useState('');
+  const [serverUrlSaved, setServerUrlSaved] = useState(false);
 
   useEffect(() => {
+    void storage.get(['server_url']).then((data) => {
+      setServerUrl(data.server_url || DEFAULT_SERVER_URL);
+    });
     void (async () => {
       try {
         const status = await api.vaultStatus();
@@ -26,6 +31,14 @@ export default function Login({ onSuccess }: Props) {
       }
     })();
   }, []);
+
+  const handleSaveServerUrl = async () => {
+    const trimmed = serverUrl.trim();
+    await storage.set({ server_url: trimmed || undefined });
+    setServerUrl(trimmed || DEFAULT_SERVER_URL);
+    setServerUrlSaved(true);
+    setTimeout(() => setServerUrlSaved(false), 2000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +83,28 @@ export default function Login({ onSuccess }: Props) {
           : 'Enter your master password to unlock the vault.'}
       </p>
       <form onSubmit={(e) => void handleSubmit(e)}>
+        <div className="form-group">
+          <label htmlFor="server-url">Backend URL</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              id="server-url"
+              type="text"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder={DEFAULT_SERVER_URL}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void handleSaveServerUrl()}
+              disabled={loading}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {serverUrlSaved ? '✓' : 'Save'}
+            </button>
+          </div>
+        </div>
         <div className="form-group">
           <label htmlFor="master-password">Master Password</label>
           <input

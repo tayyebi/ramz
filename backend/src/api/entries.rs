@@ -197,11 +197,7 @@ pub async fn list_entries(
 
     let paginated: Vec<_> = entries.into_iter().skip(offset).take(limit).collect();
 
-    tracing::debug!(
-        returned = paginated.len(),
-        total = total,
-        "Entries listed"
-    );
+    tracing::debug!(returned = paginated.len(), total = total, "Entries listed");
 
     Ok(Json(json!({
         "entries": paginated,

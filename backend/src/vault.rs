@@ -221,7 +221,10 @@ impl VaultManager {
         let retention_days = self.config.storage.backup_retention_days as i64;
         let cutoff = Utc::now() - chrono::Duration::days(retention_days);
 
-        tracing::debug!(retention_days = retention_days, "Cleaning up old vault backups");
+        tracing::debug!(
+            retention_days = retention_days,
+            "Cleaning up old vault backups"
+        );
 
         if let Ok(entries) = std::fs::read_dir(&self.backup_dir) {
             for entry in entries.flatten() {

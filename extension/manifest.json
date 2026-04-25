@@ -7,6 +7,7 @@
   "host_permissions": ["http://localhost:8080/*"],
   "background": {
     "service_worker": "dist/background/index.js",
+    "scripts": ["dist/background/index.js"],
     "type": "module"
   },
   "action": {

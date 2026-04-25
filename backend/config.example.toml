@@ -1,0 +1,43 @@
+# Ramz Password Manager - Example Configuration
+
+[server]
+# Host to listen on
+host = "127.0.0.1"
+# Port to listen on
+port = 8080
+# Enable HTTPS (requires tls_cert_path and tls_key_path)
+enable_https = false
+# tls_cert_path = "/path/to/cert.pem"
+# tls_key_path = "/path/to/key.pem"
+
+[security]
+# JWT secret key (leave empty to auto-generate)
+# jwt_secret = "your-secret-key"
+# JWT access token expiration in minutes
+jwt_expiration_minutes = 30
+# JWT refresh token expiration in days
+refresh_token_expiration_days = 7
+# Session inactivity timeout in minutes
+inactivity_timeout_minutes = 15
+# Maximum failed login attempts before rate limiting
+max_failed_attempts = 5
+
+[security.argon2]
+# Argon2id memory cost in KiB (higher = more secure but slower)
+memory_kib = 65536
+# Argon2id iteration count
+iterations = 3
+# Argon2id parallelism
+parallelism = 4
+
+[storage]
+# Directory for vault data
+data_dir = "./data"
+# Enable automatic backups on save
+auto_backup = true
+# Number of days to retain backups
+backup_retention_days = 30
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"

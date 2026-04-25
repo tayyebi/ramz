@@ -1,0 +1,23 @@
+# Rust
+backend/target/
+backend/Cargo.lock
+
+# Node / Extension
+extension/node_modules/
+extension/dist/
+
+# Data dir (vault files should not be committed)
+data/
+
+# Config with secrets
+config.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

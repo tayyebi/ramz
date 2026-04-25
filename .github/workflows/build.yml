@@ -1,0 +1,213 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main, "copilot/**"]
+  pull_request:
+    branches: [main]
+  release:
+    types: [created]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Rust backend: fmt, clippy, test, audit, build
+  # ──────────────────────────────────────────────
+  backend-check:
+    name: Backend – lint & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: cargo test
+        run: cargo test --all
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --quiet
+      - name: cargo audit
+        run: cargo audit
+
+  # ──────────────────────────────────────────────
+  # Release builds for multiple targets
+  # ──────────────────────────────────────────────
+  backend-build:
+    name: Build backend – ${{ matrix.target }}
+    needs: backend-check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: ramz-linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: ramz-linux-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: ramz-windows-x86_64.exe
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: ramz-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: ramz-macos-aarch64
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.target }}-cargo-
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Rename binary (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp target/${{ matrix.target }}/release/ramz ${{ matrix.artifact }}
+
+      - name: Rename binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Copy-Item target\${{ matrix.target }}\release\ramz.exe ${{ matrix.artifact }}
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: backend/${{ matrix.artifact }}
+          retention-days: 30
+
+  # ──────────────────────────────────────────────
+  # Browser extension: lint, build, package
+  # ──────────────────────────────────────────────
+  extension-build:
+    name: Extension – build & package
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type-check
+        run: npm run lint
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Package Chrome extension (.zip)
+        run: |
+          cp manifest.json dist/
+          mkdir -p dist/icons
+          # Create placeholder icons if they don't exist
+          for size in 16 48 128; do
+            if [ ! -f "icons/icon${size}.png" ]; then
+              cp /dev/null dist/icons/icon${size}.png 2>/dev/null || true
+            else
+              cp icons/icon${size}.png dist/icons/
+            fi
+          done
+          cd dist && zip -r ../ramz-extension-chrome.zip . -x "*.map"
+
+      - name: Package Firefox extension (.xpi)
+        run: |
+          cp ramz-extension-chrome.zip ramz-extension-firefox.xpi
+
+      - name: Upload Chrome extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: ramz-extension-chrome
+          path: extension/ramz-extension-chrome.zip
+          retention-days: 30
+
+      - name: Upload Firefox extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: ramz-extension-firefox
+          path: extension/ramz-extension-firefox.xpi
+          retention-days: 30
+
+  # ──────────────────────────────────────────────
+  # Create GitHub Release assets
+  # ──────────────────────────────────────────────
+  release:
+    name: Publish release assets
+    if: github.event_name == 'release'
+    needs: [backend-build, extension-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*

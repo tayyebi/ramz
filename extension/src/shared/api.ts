@@ -4,7 +4,9 @@ import { DEFAULT_SERVER_URL } from './storage';
 async function getBaseUrl(): Promise<string> {
   return new Promise((resolve) => {
     chrome.storage.local.get(['server_url'], (result) => {
-      resolve(((result['server_url'] as string) || DEFAULT_SERVER_URL).replace(/\/$/, '') + '/api');
+      const raw = (result['server_url'] as string) || DEFAULT_SERVER_URL;
+      const base = raw.replace(/\/$/, '');
+      resolve(`${base}/api`);
     });
   });
 }

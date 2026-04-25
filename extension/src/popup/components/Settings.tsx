@@ -26,7 +26,8 @@ export default function Settings({ onLogout }: Props) {
 
   const handleSaveServerUrl = async () => {
     const trimmed = serverUrl.trim();
-    await storage.set({ server_url: trimmed || DEFAULT_SERVER_URL });
+    await storage.set({ server_url: trimmed || undefined });
+    setServerUrl(trimmed || DEFAULT_SERVER_URL);
     setServerUrlSaved(true);
     setTimeout(() => setServerUrlSaved(false), 2000);
   };

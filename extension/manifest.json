@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Secure self-hosted password manager",
   "permissions": ["storage", "activeTab", "scripting", "contextMenus", "alarms"],
-  "host_permissions": ["http://localhost:8080/*"],
+  "host_permissions": ["http://*/*", "https://*/*"],
   "background": {
     "service_worker": "background/index.js",
     "scripts": ["background/index.js"],

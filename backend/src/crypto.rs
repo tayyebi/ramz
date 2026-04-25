@@ -1,5 +1,5 @@
 use crate::config::Argon2Config;
-use crate::error::{AppError, ApiResult};
+use crate::error::{ApiResult, AppError};
 use crate::models::EncryptedField;
 use anyhow::Result;
 use argon2::{
@@ -26,20 +26,24 @@ impl NonceSequence for OneNonce {
 pub fn generate_nonce() -> Result<[u8; 12]> {
     let rng = SystemRandom::new();
     let mut nonce = [0u8; 12];
-    rng.fill(&mut nonce).map_err(|_| anyhow::anyhow!("Failed to generate nonce"))?;
+    rng.fill(&mut nonce)
+        .map_err(|_| anyhow::anyhow!("Failed to generate nonce"))?;
     Ok(nonce)
 }
 
 pub fn generate_salt() -> Result<Vec<u8>> {
     let rng = SystemRandom::new();
     let mut salt = vec![0u8; 32];
-    rng.fill(&mut salt).map_err(|_| anyhow::anyhow!("Failed to generate salt"))?;
+    rng.fill(&mut salt)
+        .map_err(|_| anyhow::anyhow!("Failed to generate salt"))?;
     Ok(salt)
 }
 
 pub fn encrypt(key: &[u8], plaintext: &[u8]) -> Result<EncryptedField> {
     let nonce_bytes = generate_nonce()?;
-    let key_bytes: [u8; 32] = key.try_into().map_err(|_| anyhow::anyhow!("Key must be 32 bytes"))?;
+    let key_bytes: [u8; 32] = key
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Key must be 32 bytes"))?;
 
     let unbound_key = UnboundKey::new(&AES_256_GCM, &key_bytes)
         .map_err(|_| anyhow::anyhow!("Failed to create encryption key"))?;
@@ -78,7 +82,9 @@ pub fn decrypt(key: &[u8], field: &EncryptedField) -> ApiResult<Vec<u8>> {
     let mut in_out = ciphertext;
     let plaintext = opening_key
         .open_in_place(aead::Aad::empty(), &mut in_out)
-        .map_err(|_| AppError::Unauthorized("Decryption failed - wrong key or corrupted data".to_string()))?;
+        .map_err(|_| {
+            AppError::Unauthorized("Decryption failed - wrong key or corrupted data".to_string())
+        })?;
 
     Ok(plaintext.to_vec())
 }
@@ -120,11 +126,7 @@ pub fn hkdf_derive(ikm: &[u8], info: &[u8]) -> Result<Zeroizing<[u8; 32]>> {
     Ok(output)
 }
 
-pub fn hash_master_password(
-    password: &str,
-    salt: &[u8],
-    config: &Argon2Config,
-) -> Result<String> {
+pub fn hash_master_password(password: &str, salt: &[u8], config: &Argon2Config) -> Result<String> {
     let params = Params::new(
         config.memory_kib,
         config.iterations,
@@ -134,8 +136,8 @@ pub fn hash_master_password(
     .map_err(|e| anyhow::anyhow!("Invalid Argon2 params: {}", e))?;
 
     let argon2 = Argon2::new(argon2::Algorithm::Argon2id, Version::V0x13, params);
-    let salt_string = SaltString::encode_b64(salt)
-        .map_err(|e| anyhow::anyhow!("Salt encoding failed: {}", e))?;
+    let salt_string =
+        SaltString::encode_b64(salt).map_err(|e| anyhow::anyhow!("Salt encoding failed: {}", e))?;
 
     let hash = argon2
         .hash_password(password.as_bytes(), &salt_string)

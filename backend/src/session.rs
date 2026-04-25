@@ -89,10 +89,13 @@ impl SessionStore {
     }
 
     pub fn record_failed_attempt(&self, identifier: &str) {
-        let mut entry = self.failed_attempts.entry(identifier.to_string()).or_insert(FailedAttempts {
-            count: 0,
-            first_attempt: Utc::now(),
-        });
+        let mut entry = self
+            .failed_attempts
+            .entry(identifier.to_string())
+            .or_insert(FailedAttempts {
+                count: 0,
+                first_attempt: Utc::now(),
+            });
 
         let window = Duration::minutes(1);
         let elapsed = Utc::now() - entry.first_attempt;

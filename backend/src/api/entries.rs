@@ -1,6 +1,6 @@
 use crate::api::auth::extract_session_id;
 use crate::crypto::{decrypt, encrypt};
-use crate::error::{AppError, ApiResult};
+use crate::error::{ApiResult, AppError};
 use crate::models::{CustomField, EncryptedField, PasswordEntry};
 use crate::AppState;
 use axum::{
@@ -127,9 +127,7 @@ pub async fn list_entries(
 
     let vault = state.vault.read().await;
     let pv = vault.get_vault()?;
-    let key = vault
-        .get_encryption_key()
-        .ok_or(AppError::VaultLocked)?;
+    let key = vault.get_encryption_key().ok_or(AppError::VaultLocked)?;
 
     let all_entries: Vec<EntryResponse> = pv
         .password_entries
@@ -147,10 +145,19 @@ pub async fn list_entries(
         entries.retain(|e| {
             e.title.to_lowercase().contains(&search_lower)
                 || e.username.to_lowercase().contains(&search_lower)
-                || e.url.as_deref().unwrap_or("").to_lowercase().contains(&search_lower)
-                || e.notes.as_deref().unwrap_or("").to_lowercase().contains(&search_lower)
+                || e.url
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .contains(&search_lower)
+                || e.notes
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase()
+                    .contains(&search_lower)
                 || e.tags.as_ref().map_or(false, |tags| {
-                    tags.iter().any(|t| t.to_lowercase().contains(&search_lower))
+                    tags.iter()
+                        .any(|t| t.to_lowercase().contains(&search_lower))
                 })
         });
     }
@@ -162,11 +169,7 @@ pub async fn list_entries(
 
     // Tag filter
     if let Some(tag) = &query.tag {
-        entries.retain(|e| {
-            e.tags
-                .as_ref()
-                .map_or(false, |tags| tags.contains(tag))
-        });
+        entries.retain(|e| e.tags.as_ref().map_or(false, |tags| tags.contains(tag)));
     }
 
     // Sort
@@ -179,7 +182,11 @@ pub async fn list_entries(
             "updated_at" => a.updated_at.cmp(&b.updated_at),
             _ => a.title.to_lowercase().cmp(&b.title.to_lowercase()),
         };
-        if ascending { cmp } else { cmp.reverse() }
+        if ascending {
+            cmp
+        } else {
+            cmp.reverse()
+        }
     });
 
     let total = total_unfiltered;
@@ -213,8 +220,10 @@ pub async fn create_entry(
             .map_err(|e| AppError::Internal(e.to_string()))?;
 
         let notes_enc = if let Some(notes) = &req.notes {
-            Some(encrypt(key.as_ref(), notes.as_bytes())
-                .map_err(|e| AppError::Internal(e.to_string()))?)
+            Some(
+                encrypt(key.as_ref(), notes.as_bytes())
+                    .map_err(|e| AppError::Internal(e.to_string()))?,
+            )
         } else {
             None
         };
@@ -256,7 +265,9 @@ pub async fn create_entry(
         let mut vault = state.vault.write().await;
         vault.get_vault_mut()?.password_entries.push(entry);
         vault.get_vault_mut()?.metadata.last_modified = now;
-        vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+        vault
+            .save()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
     Ok(Json(json!({ "entry": response })))
@@ -296,7 +307,10 @@ pub async fn update_entry(
 
     let response = {
         let mut vault = state.vault.write().await;
-        let key = vault.get_encryption_key().ok_or(AppError::VaultLocked)?.clone();
+        let key = vault
+            .get_encryption_key()
+            .ok_or(AppError::VaultLocked)?
+            .clone();
 
         let pv = vault.get_vault_mut()?;
 
@@ -346,7 +360,9 @@ pub async fn update_entry(
         let response = decrypt_entry(entry, key.as_ref())?;
 
         pv.metadata.last_modified = now;
-        vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+        vault
+            .save()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         response
     };
@@ -372,7 +388,9 @@ pub async fn delete_entry(
     }
 
     pv.metadata.last_modified = Utc::now();
-    vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+    vault
+        .save()
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(Json(json!({ "message": "Entry deleted" })))
 }

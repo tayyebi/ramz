@@ -1,9 +1,4 @@
-use ramz::{
-    config::AppConfig,
-    session::SessionStore,
-    vault::VaultManager,
-    AppState, SharedState,
-};
+use ramz::{config::AppConfig, session::SessionStore, vault::VaultManager, AppState, SharedState};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

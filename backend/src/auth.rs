@@ -1,5 +1,5 @@
 use crate::config::AppConfig;
-use crate::error::{AppError, ApiResult};
+use crate::error::{ApiResult, AppError};
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};

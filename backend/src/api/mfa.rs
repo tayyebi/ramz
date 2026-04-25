@@ -1,6 +1,6 @@
 use crate::api::auth::extract_session_id;
 use crate::crypto::{decrypt, encrypt};
-use crate::error::{AppError, ApiResult};
+use crate::error::{ApiResult, AppError};
 use crate::models::{MfaEntry, TotpAlgorithm};
 use crate::utils::parse_otpauth_uri;
 use crate::AppState;
@@ -63,10 +63,7 @@ fn decrypt_mfa(entry: &MfaEntry, key: &[u8]) -> ApiResult<MfaResponse> {
     })
 }
 
-pub async fn list_mfa(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<Json<Value>> {
+pub async fn list_mfa(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Json<Value>> {
     extract_session_id(&state, &headers)?;
 
     let vault = state.vault.read().await;
@@ -119,7 +116,9 @@ pub async fn create_mfa(
         let mut vault = state.vault.write().await;
         vault.get_vault_mut()?.mfa_entries.push(entry);
         vault.get_vault_mut()?.metadata.last_modified = now;
-        vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+        vault
+            .save()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
     Ok(Json(json!({ "entry": response })))
@@ -143,7 +142,9 @@ pub async fn delete_mfa(
     }
 
     pv.metadata.last_modified = Utc::now();
-    vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+    vault
+        .save()
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(Json(json!({ "message": "MFA entry deleted" })))
 }
@@ -209,10 +210,7 @@ pub async fn import_mfa_uri(
     let params = parse_otpauth_uri(&req.uri)
         .map_err(|e| AppError::BadRequest(format!("Invalid OTP URI: {}", e)))?;
 
-    let algorithm: TotpAlgorithm = params
-        .algorithm
-        .parse()
-        .unwrap_or(TotpAlgorithm::Sha1);
+    let algorithm: TotpAlgorithm = params.algorithm.parse().unwrap_or(TotpAlgorithm::Sha1);
 
     let now = Utc::now();
     let entry_id = Uuid::new_v4();
@@ -244,7 +242,9 @@ pub async fn import_mfa_uri(
         let mut vault = state.vault.write().await;
         vault.get_vault_mut()?.mfa_entries.push(entry);
         vault.get_vault_mut()?.metadata.last_modified = now;
-        vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+        vault
+            .save()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
     Ok(Json(json!({ "entry": response })))

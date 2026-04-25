@@ -133,17 +133,14 @@ async fn test_unlock_wrong_password() {
     // Lock vault
     server
         .post("/api/auth/lock")
-        .add_header(
-            axum::http::header::AUTHORIZATION,
-            {
-                let setup_resp = server
-                    .post("/api/auth/setup")
-                    .json(&json!({ "master_password": "AnotherPass!" }))
-                    .await;
-                // Actually we need to lock the current one
-                "Bearer dummy".parse().unwrap()
-            },
-        )
+        .add_header(axum::http::header::AUTHORIZATION, {
+            let setup_resp = server
+                .post("/api/auth/setup")
+                .json(&json!({ "master_password": "AnotherPass!" }))
+                .await;
+            // Actually we need to lock the current one
+            "Bearer dummy".parse().unwrap()
+        })
         .await;
 
     // Try wrong password

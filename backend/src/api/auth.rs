@@ -1,10 +1,6 @@
-use crate::error::{AppError, ApiResult};
+use crate::error::{ApiResult, AppError};
 use crate::AppState;
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Json,
-};
+use axum::{extract::State, http::HeaderMap, Json};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -96,7 +92,9 @@ pub async fn unlock(
 
     if !success {
         state.sessions.record_failed_attempt(identifier);
-        return Err(AppError::Unauthorized("Invalid master password".to_string()));
+        return Err(AppError::Unauthorized(
+            "Invalid master password".to_string(),
+        ));
     }
 
     state.sessions.clear_failed_attempts(identifier);
@@ -118,10 +116,7 @@ pub async fn unlock(
     })))
 }
 
-pub async fn lock(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> ApiResult<Json<Value>> {
+pub async fn lock(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Json<Value>> {
     extract_session_id(&state, &headers)?;
 
     {
@@ -175,7 +170,9 @@ pub fn extract_session_id(state: &AppState, headers: &HeaderMap) -> ApiResult<Uu
     let claims = state.auth.validate_access_token(token)?;
 
     if !state.sessions.is_session_valid(&claims.session_id) {
-        return Err(AppError::Unauthorized("Session expired or invalid".to_string()));
+        return Err(AppError::Unauthorized(
+            "Session expired or invalid".to_string(),
+        ));
     }
 
     state.sessions.touch_session(&claims.session_id);

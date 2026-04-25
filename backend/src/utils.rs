@@ -52,7 +52,9 @@ pub fn generate_password(
 
     let chars: Vec<char> = charset.chars().collect();
     let mut rng = rand::thread_rng();
-    (0..length).map(|_| chars[rng.gen_range(0..chars.len())]).collect()
+    (0..length)
+        .map(|_| chars[rng.gen_range(0..chars.len())])
+        .collect()
 }
 
 pub fn estimate_password_strength(password: &str) -> u32 {

@@ -1,13 +1,9 @@
 use crate::api::auth::extract_session_id;
 use crate::crypto::{decrypt, encrypt};
-use crate::error::{AppError, ApiResult};
+use crate::error::{ApiResult, AppError};
 use crate::models::PlaintextVault;
 use crate::AppState;
-use axum::{
-    extract::State,
-    http::HeaderMap,
-    Json,
-};
+use axum::{extract::State, http::HeaderMap, Json};
 use serde_json::{json, Value};
 
 pub async fn vault_status(State(state): State<AppState>) -> Json<Value> {
@@ -119,27 +115,56 @@ pub async fn import_vault(
 
     {
         let vault_read = state.vault.read().await;
-        let key = vault_read.get_encryption_key().ok_or(AppError::VaultLocked)?.clone();
+        let key = vault_read
+            .get_encryption_key()
+            .ok_or(AppError::VaultLocked)?
+            .clone();
         drop(vault_read);
 
         let mut vault = state.vault.write().await;
 
         for entry_val in &password_entries {
-            let title = entry_val.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let username = entry_val.get("username").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let password = entry_val.get("password").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let url = entry_val.get("url").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let notes = entry_val.get("notes").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let folder = entry_val.get("folder").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let title = entry_val
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let username = entry_val
+                .get("username")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let password = entry_val
+                .get("password")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let url = entry_val
+                .get("url")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let notes = entry_val
+                .get("notes")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let folder = entry_val
+                .get("folder")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
             let tags = entry_val.get("tags").and_then(|v| v.as_array()).map(|arr| {
-                arr.iter().filter_map(|t| t.as_str().map(|s| s.to_string())).collect()
+                arr.iter()
+                    .filter_map(|t| t.as_str().map(|s| s.to_string()))
+                    .collect()
             });
 
             let now = chrono::Utc::now();
             let password_enc = encrypt(key.as_ref(), password.as_bytes())
                 .map_err(|e| AppError::Internal(e.to_string()))?;
             let notes_enc = if let Some(n) = notes {
-                Some(encrypt(key.as_ref(), n.as_bytes()).map_err(|e| AppError::Internal(e.to_string()))?)
+                Some(
+                    encrypt(key.as_ref(), n.as_bytes())
+                        .map_err(|e| AppError::Internal(e.to_string()))?,
+                )
             } else {
                 None
             };
@@ -163,13 +188,33 @@ pub async fn import_vault(
         }
 
         for entry_val in &mfa_entries {
-            let account_name = entry_val.get("account_name").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let secret_str = entry_val.get("secret").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let issuer = entry_val.get("issuer").and_then(|v| v.as_str()).map(|s| s.to_string());
-            let algorithm_str = entry_val.get("algorithm").and_then(|v| v.as_str()).unwrap_or("SHA1");
+            let account_name = entry_val
+                .get("account_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let secret_str = entry_val
+                .get("secret")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let issuer = entry_val
+                .get("issuer")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let algorithm_str = entry_val
+                .get("algorithm")
+                .and_then(|v| v.as_str())
+                .unwrap_or("SHA1");
             let algorithm: crate::models::TotpAlgorithm = algorithm_str.parse().unwrap_or_default();
-            let digits = entry_val.get("digits").and_then(|v| v.as_u64()).unwrap_or(6) as u8;
-            let period = entry_val.get("period").and_then(|v| v.as_u64()).unwrap_or(30);
+            let digits = entry_val
+                .get("digits")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(6) as u8;
+            let period = entry_val
+                .get("period")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(30);
 
             let now = chrono::Utc::now();
             let secret_enc = encrypt(key.as_ref(), secret_str.as_bytes())
@@ -192,7 +237,9 @@ pub async fn import_vault(
         }
 
         vault.get_vault_mut()?.metadata.last_modified = chrono::Utc::now();
-        vault.save().map_err(|e| AppError::Internal(e.to_string()))?;
+        vault
+            .save()
+            .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
     Ok(Json(json!({

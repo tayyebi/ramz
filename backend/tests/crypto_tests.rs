@@ -1,5 +1,5 @@
-use ramz::crypto::*;
 use ramz::config::Argon2Config;
+use ramz::crypto::*;
 
 fn fast_argon2() -> Argon2Config {
     Argon2Config {

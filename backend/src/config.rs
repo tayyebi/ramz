@@ -67,18 +67,42 @@ pub struct LoggingConfig {
     pub level: Option<String>,
 }
 
-fn default_host() -> String { "127.0.0.1".to_string() }
-fn default_port() -> u16 { 8080 }
-fn default_jwt_expiration_minutes() -> i64 { 30 }
-fn default_refresh_token_expiration_days() -> i64 { 7 }
-fn default_inactivity_timeout_minutes() -> u64 { 15 }
-fn default_max_failed_attempts() -> u32 { 5 }
-fn default_memory_kib() -> u32 { 65536 }
-fn default_iterations() -> u32 { 3 }
-fn default_parallelism() -> u32 { 4 }
-fn default_data_dir() -> String { "./data".to_string() }
-fn default_auto_backup() -> bool { true }
-fn default_backup_retention_days() -> u32 { 30 }
+fn default_host() -> String {
+    "127.0.0.1".to_string()
+}
+fn default_port() -> u16 {
+    8080
+}
+fn default_jwt_expiration_minutes() -> i64 {
+    30
+}
+fn default_refresh_token_expiration_days() -> i64 {
+    7
+}
+fn default_inactivity_timeout_minutes() -> u64 {
+    15
+}
+fn default_max_failed_attempts() -> u32 {
+    5
+}
+fn default_memory_kib() -> u32 {
+    65536
+}
+fn default_iterations() -> u32 {
+    3
+}
+fn default_parallelism() -> u32 {
+    4
+}
+fn default_data_dir() -> String {
+    "./data".to_string()
+}
+fn default_auto_backup() -> bool {
+    true
+}
+fn default_backup_retention_days() -> u32 {
+    30
+}
 
 impl Default for ServerConfig {
     fn default() -> Self {

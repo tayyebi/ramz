@@ -3,8 +3,10 @@ use crate::crypto::{
     decrypt, derive_key, encrypt, generate_salt, get_encryption_key, hash_master_password,
     verify_master_password,
 };
-use crate::error::{AppError, ApiResult};
-use crate::models::{Argon2Params, MfaEntry, PasswordEntry, PlaintextVault, VaultFile, VaultMetadata};
+use crate::error::{ApiResult, AppError};
+use crate::models::{
+    Argon2Params, MfaEntry, PasswordEntry, PlaintextVault, VaultFile, VaultMetadata,
+};
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chrono::Utc;
@@ -145,8 +147,14 @@ impl VaultManager {
     }
 
     pub fn save(&self) -> Result<()> {
-        let vault = self.decrypted_vault.as_ref().ok_or_else(|| anyhow::anyhow!("Vault is locked"))?;
-        let encryption_key = self.encryption_key.as_ref().ok_or_else(|| anyhow::anyhow!("No encryption key"))?;
+        let vault = self
+            .decrypted_vault
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Vault is locked"))?;
+        let encryption_key = self
+            .encryption_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No encryption key"))?;
 
         // Create backup if enabled
         if self.config.storage.auto_backup && self.vault_path.exists() {

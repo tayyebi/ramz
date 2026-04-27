@@ -5,6 +5,10 @@ A secure, self-hosted password manager consisting of:
 - **Rust backend** — single binary, AES-256-GCM encrypted vault, Argon2id key derivation
 - **Browser extension** — Chrome & Firefox (Manifest V3), React UI
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/18f88b98-1f98-433a-a447-9c20b3923a94" width="392" height="566" alt="Ramz extension screenshot" />
+</p>
+
 ---
 
 ## Table of Contents

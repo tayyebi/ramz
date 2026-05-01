@@ -14,6 +14,8 @@ pub struct PlaintextVault {
     pub metadata: VaultMetadata,
     pub password_entries: Vec<PasswordEntry>,
     pub mfa_entries: Vec<MfaEntry>,
+    #[serde(default)]
+    pub passkey_entries: Vec<PasskeyEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +89,23 @@ impl std::fmt::Display for TotpAlgorithm {
             TotpAlgorithm::Sha512 => write!(f, "SHA512"),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PasskeyEntry {
+    pub id: Uuid,
+    pub rp_id: String,
+    pub rp_name: String,
+    pub user_id: String,
+    pub user_name: String,
+    pub user_display_name: String,
+    pub credential_id: String,
+    pub private_key: EncryptedField,
+    pub sign_count: u32,
+    pub aaguid: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub last_used_at: Option<DateTime<Utc>>,
+    pub linked_password_entry_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

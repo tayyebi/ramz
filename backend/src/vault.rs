@@ -64,6 +64,7 @@ impl VaultManager {
             },
             password_entries: vec![],
             mfa_entries: vec![],
+            passkey_entries: vec![],
         };
 
         let vault_json = serde_json::to_vec(&vault)?;
@@ -130,6 +131,7 @@ impl VaultManager {
         tracing::debug!(
             password_entries = vault.password_entries.len(),
             mfa_entries = vault.mfa_entries.len(),
+            passkey_entries = vault.passkey_entries.len(),
             "Vault decrypted and loaded into memory"
         );
 

@@ -3,6 +3,16 @@
   "name": "Ramz Password Manager",
   "version": "0.1.0",
   "description": "Secure self-hosted password manager",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ramz@tayyebi.github.io",
+      "strict_min_version": "109.0",
+      "data_collection_permissions": {
+        "required": [],
+        "optional": []
+      }
+    }
+  },
   "permissions": ["storage", "activeTab", "scripting", "contextMenus", "alarms"],
   "host_permissions": ["http://*/*", "https://*/*"],
   "background": {

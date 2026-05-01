@@ -1,4 +1,4 @@
-import type { PasswordEntry, MfaEntry, AuthTokens, TotpCode } from './types';
+import type { PasswordEntry, MfaEntry, PasskeyEntry, AuthTokens, TotpCode } from './types';
 import { DEFAULT_SERVER_URL } from './storage';
 
 async function getBaseUrl(): Promise<string> {
@@ -90,6 +90,17 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ uri }),
     }).then((r) => r.entry),
+  listPasskeys: () =>
+    request<{ entries: PasskeyEntry[] }>('/vault/passkeys').then((r) => r.entries),
+  createPasskey: (entry: Omit<PasskeyEntry, 'id' | 'created_at' | 'last_used_at'> & { private_key: string }) =>
+    request<{ entry: PasskeyEntry }>('/vault/passkeys', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
+  getPasskey: (id: string) =>
+    request<{ entry: PasskeyEntry }>(`/vault/passkeys/${id}`).then((r) => r.entry),
+  deletePasskey: (id: string) =>
+    request<{ message: string }>(`/vault/passkeys/${id}`, { method: 'DELETE' }),
   exportVault: () => request<unknown>('/vault/export'),
   importVault: (data: unknown) =>
     request<{ message: string; imported_count: number }>('/vault/import', {

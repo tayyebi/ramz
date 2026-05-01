@@ -22,6 +22,21 @@ export interface MfaEntry {
   created_at: string;
 }
 
+export interface PasskeyEntry {
+  id: string;
+  rp_id: string;
+  rp_name: string;
+  user_id: string;
+  user_name: string;
+  user_display_name: string;
+  credential_id: string;
+  sign_count: number;
+  aaguid?: string;
+  created_at: string;
+  last_used_at?: string;
+  linked_password_entry_id?: string;
+}
+
 export interface TotpCode {
   code: string;
   expires_in: number;
@@ -46,4 +61,4 @@ export interface ApiError {
   message: string;
 }
 
-export type AppView = 'login' | 'dashboard' | 'entry-detail' | 'entry-form' | 'mfa' | 'settings' | 'generator';
+export type AppView = 'login' | 'dashboard' | 'entry-detail' | 'entry-form' | 'mfa' | 'passkeys' | 'settings' | 'generator';

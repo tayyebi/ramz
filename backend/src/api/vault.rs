@@ -72,9 +72,32 @@ pub async fn export_vault(
         }));
     }
 
+    let mut decrypted_passkeys = Vec::new();
+    for entry in &pv.passkey_entries {
+        let private_key = String::from_utf8(decrypt(key.as_ref(), &entry.private_key)?)
+            .map_err(|_| AppError::Internal("Invalid private key encoding".to_string()))?;
+
+        decrypted_passkeys.push(json!({
+            "id": entry.id,
+            "rp_id": entry.rp_id,
+            "rp_name": entry.rp_name,
+            "user_id": entry.user_id,
+            "user_name": entry.user_name,
+            "user_display_name": entry.user_display_name,
+            "credential_id": entry.credential_id,
+            "private_key": private_key,
+            "sign_count": entry.sign_count,
+            "aaguid": entry.aaguid,
+            "created_at": entry.created_at,
+            "last_used_at": entry.last_used_at,
+            "linked_password_entry_id": entry.linked_password_entry_id,
+        }));
+    }
+
     tracing::info!(
         password_entries = decrypted_entries.len(),
         mfa_entries = decrypted_mfa.len(),
+        passkey_entries = decrypted_passkeys.len(),
         "Vault exported"
     );
 
@@ -84,6 +107,7 @@ pub async fn export_vault(
         "metadata": pv.metadata,
         "password_entries": decrypted_entries,
         "mfa_entries": decrypted_mfa,
+        "passkey_entries": decrypted_passkeys,
     })))
 }
 
@@ -114,6 +138,12 @@ pub async fn import_vault(
 
     let mfa_entries = body
         .get("mfa_entries")
+        .and_then(|e| e.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let passkey_entries = body
+        .get("passkey_entries")
         .and_then(|e| e.as_array())
         .cloned()
         .unwrap_or_default();
@@ -240,6 +270,75 @@ pub async fn import_vault(
             };
 
             vault.get_vault_mut()?.mfa_entries.push(entry);
+            imported_count += 1;
+        }
+
+        for entry_val in &passkey_entries {
+            let rp_id = entry_val
+                .get("rp_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let rp_name = entry_val
+                .get("rp_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let user_id = entry_val
+                .get("user_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let user_name = entry_val
+                .get("user_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let user_display_name = entry_val
+                .get("user_display_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let credential_id = entry_val
+                .get("credential_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let private_key_str = entry_val
+                .get("private_key")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let sign_count = entry_val
+                .get("sign_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32;
+            let aaguid = entry_val
+                .get("aaguid")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            let now = chrono::Utc::now();
+            let private_key_enc = encrypt(key.as_ref(), private_key_str.as_bytes())
+                .map_err(|e| AppError::Internal(e.to_string()))?;
+
+            let entry = crate::models::PasskeyEntry {
+                id: uuid::Uuid::new_v4(),
+                rp_id,
+                rp_name,
+                user_id,
+                user_name,
+                user_display_name,
+                credential_id,
+                private_key: private_key_enc,
+                sign_count,
+                aaguid,
+                created_at: now,
+                last_used_at: None,
+                linked_password_entry_id: None,
+            };
+
+            vault.get_vault_mut()?.passkey_entries.push(entry);
             imported_count += 1;
         }
 

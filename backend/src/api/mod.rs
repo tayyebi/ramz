@@ -14,6 +14,7 @@ pub mod auth;
 pub mod entries;
 pub mod health;
 pub mod mfa;
+pub mod passkey;
 pub mod vault;
 
 pub fn build_router(state: AppState) -> Router {
@@ -42,6 +43,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/vault/mfa/:id", delete(mfa::delete_mfa))
         .route("/api/vault/mfa/:id/totp", get(mfa::generate_totp))
         .route("/api/vault/mfa/import", post(mfa::import_mfa_uri))
+        // Passkeys
+        .route("/api/vault/passkeys", get(passkey::list_passkeys))
+        .route("/api/vault/passkeys", post(passkey::create_passkey))
+        .route("/api/vault/passkeys/:id", get(passkey::get_passkey))
+        .route("/api/vault/passkeys/:id", delete(passkey::delete_passkey))
         // Vault
         .route("/api/vault/export", get(vault::export_vault))
         .route("/api/vault/import", post(vault::import_vault))

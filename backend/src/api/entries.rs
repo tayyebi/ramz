@@ -123,6 +123,8 @@ pub async fn list_entries(
     headers: HeaderMap,
     Query(query): Query<EntryQuery>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(?query, "List entries request");
+
     extract_session_id(&state, &headers)?;
 
     let vault = state.vault.read().await;
@@ -195,6 +197,8 @@ pub async fn list_entries(
 
     let paginated: Vec<_> = entries.into_iter().skip(offset).take(limit).collect();
 
+    tracing::debug!(returned = paginated.len(), total = total, "Entries listed");
+
     Ok(Json(json!({
         "entries": paginated,
         "total": total
@@ -206,6 +210,8 @@ pub async fn create_entry(
     headers: HeaderMap,
     Json(req): Json<CreateEntryRequest>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(title = %req.title, "Create entry request");
+
     extract_session_id(&state, &headers)?;
 
     let now = Utc::now();
@@ -270,6 +276,8 @@ pub async fn create_entry(
             .map_err(|e| AppError::Internal(e.to_string()))?;
     }
 
+    tracing::info!(entry_id = %entry_id, title = %response.title, "Entry created");
+
     Ok(Json(json!({ "entry": response })))
 }
 
@@ -278,6 +286,8 @@ pub async fn get_entry(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(%id, "Get entry request");
+
     extract_session_id(&state, &headers)?;
 
     let vault = state.vault.read().await;
@@ -301,6 +311,8 @@ pub async fn update_entry(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateEntryRequest>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(%id, "Update entry request");
+
     extract_session_id(&state, &headers)?;
 
     let now = Utc::now();
@@ -367,6 +379,8 @@ pub async fn update_entry(
         response
     };
 
+    tracing::info!(%id, "Entry updated");
+
     Ok(Json(json!({ "entry": response })))
 }
 
@@ -375,6 +389,8 @@ pub async fn delete_entry(
     headers: HeaderMap,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<Value>> {
+    tracing::debug!(%id, "Delete entry request");
+
     extract_session_id(&state, &headers)?;
 
     let mut vault = state.vault.write().await;
@@ -391,6 +407,8 @@ pub async fn delete_entry(
     vault
         .save()
         .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    tracing::info!(%id, "Entry deleted");
 
     Ok(Json(json!({ "message": "Entry deleted" })))
 }

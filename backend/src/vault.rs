@@ -47,6 +47,8 @@ impl VaultManager {
             return Err(anyhow::anyhow!("Vault already exists"));
         }
 
+        tracing::info!(vault_path = %self.vault_path.display(), "Initialising vault");
+
         let salt = generate_salt()?;
         let argon2_config = &self.config.security.argon2;
 
@@ -87,6 +89,7 @@ impl VaultManager {
         self.decrypted_vault = Some(vault);
         self.encryption_key = Some(encryption_key);
 
+        tracing::debug!("Vault initialised and saved to disk");
         Ok(())
     }
 
@@ -95,10 +98,13 @@ impl VaultManager {
             return Err(anyhow::anyhow!("Vault does not exist"));
         }
 
+        tracing::debug!("Attempting to unlock vault");
+
         let vault_file_json = std::fs::read_to_string(&self.vault_path)?;
         let vault_file: VaultFile = serde_json::from_str(&vault_file_json)?;
 
         if !verify_master_password(master_password, &vault_file.password_hash)? {
+            tracing::debug!("Vault unlock failed: incorrect master password");
             return Ok(false);
         }
 
@@ -121,6 +127,12 @@ impl VaultManager {
 
         let vault: PlaintextVault = serde_json::from_slice(&vault_json)?;
 
+        tracing::debug!(
+            password_entries = vault.password_entries.len(),
+            mfa_entries = vault.mfa_entries.len(),
+            "Vault decrypted and loaded into memory"
+        );
+
         self.decrypted_vault = Some(vault);
         self.encryption_key = Some(encryption_key);
 
@@ -128,6 +140,7 @@ impl VaultManager {
     }
 
     pub fn lock(&mut self) {
+        tracing::info!("Locking vault and clearing encryption keys from memory");
         self.decrypted_vault = None;
         self.encryption_key = None;
     }
@@ -153,6 +166,8 @@ impl VaultManager {
             .encryption_key
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("No encryption key"))?;
+
+        tracing::debug!("Saving vault to disk");
 
         // Create backup if enabled
         if self.config.storage.auto_backup && self.vault_path.exists() {
@@ -184,6 +199,7 @@ impl VaultManager {
         std::fs::write(&tmp_path, new_vault_file_json)?;
         std::fs::rename(&tmp_path, &self.vault_path)?;
 
+        tracing::trace!("Vault saved successfully");
         Ok(())
     }
 
@@ -196,6 +212,7 @@ impl VaultManager {
         let backup_name = format!("vault_{}.enc", timestamp);
         let backup_path = self.backup_dir.join(backup_name);
 
+        tracing::debug!(backup_path = %backup_path.display(), "Creating vault backup");
         std::fs::copy(&self.vault_path, &backup_path)?;
         Ok(())
     }
@@ -203,6 +220,11 @@ impl VaultManager {
     fn cleanup_old_backups(&self) -> Result<()> {
         let retention_days = self.config.storage.backup_retention_days as i64;
         let cutoff = Utc::now() - chrono::Duration::days(retention_days);
+
+        tracing::debug!(
+            retention_days = retention_days,
+            "Cleaning up old vault backups"
+        );
 
         if let Ok(entries) = std::fs::read_dir(&self.backup_dir) {
             for entry in entries.flatten() {
@@ -212,6 +234,7 @@ impl VaultManager {
                         if let Ok(modified) = metadata.modified() {
                             let modified_dt: chrono::DateTime<Utc> = modified.into();
                             if modified_dt < cutoff {
+                                tracing::trace!(path = %path.display(), "Removing expired backup");
                                 let _ = std::fs::remove_file(&path);
                             }
                         }

@@ -3,6 +3,7 @@ use axum::{extract::State, Json};
 use serde_json::{json, Value};
 
 pub async fn health_check(State(state): State<AppState>) -> Json<Value> {
+    tracing::trace!("Health check requested");
     let vault = state.vault.read().await;
     Json(json!({
         "status": "ok",

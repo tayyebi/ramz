@@ -1,6 +1,15 @@
 import type { PasswordEntry, MfaEntry, AuthTokens, TotpCode } from './types';
+import { DEFAULT_SERVER_URL } from './storage';
 
-const BASE_URL = 'http://localhost:8080/api';
+async function getBaseUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['server_url'], (result) => {
+      const raw = (result['server_url'] as string) || DEFAULT_SERVER_URL;
+      const base = raw.replace(/\/$/, '');
+      resolve(`${base}/api`);
+    });
+  });
+}
 
 async function getToken(): Promise<string | null> {
   return new Promise((resolve) => {
@@ -11,14 +20,14 @@ async function getToken(): Promise<string | null> {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = await getToken();
+  const [baseUrl, token] = await Promise.all([getBaseUrl(), getToken()]);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const resp = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const resp = await fetch(`${baseUrl}${path}`, { ...options, headers });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ error: { code: 'UNKNOWN', message: resp.statusText } }));
     throw new Error((err as { error?: { message?: string } })?.error?.message || resp.statusText);
@@ -49,23 +58,42 @@ export const api = {
       body: JSON.stringify({ refresh_token: refreshToken }),
     }),
   listEntries: (search?: string) =>
-    request<PasswordEntry[]>(
+    request<{ entries: PasswordEntry[]; total: number }>(
       `/vault/entries${search ? `?search=${encodeURIComponent(search)}` : ''}`
-    ),
-  getEntry: (id: string) => request<PasswordEntry>(`/vault/entries/${id}`),
+    ).then((r) => r.entries),
+  getEntry: (id: string) =>
+    request<{ entry: PasswordEntry }>(`/vault/entries/${id}`).then((r) => r.entry),
   createEntry: (entry: Omit<PasswordEntry, 'id' | 'created_at' | 'updated_at'>) =>
-    request<PasswordEntry>('/vault/entries', { method: 'POST', body: JSON.stringify(entry) }),
+    request<{ entry: PasswordEntry }>('/vault/entries', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
   updateEntry: (id: string, entry: Partial<PasswordEntry>) =>
-    request<PasswordEntry>(`/vault/entries/${id}`, { method: 'PUT', body: JSON.stringify(entry) }),
+    request<{ entry: PasswordEntry }>(`/vault/entries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
   deleteEntry: (id: string) =>
     request<{ message: string }>(`/vault/entries/${id}`, { method: 'DELETE' }),
-  listMfa: () => request<MfaEntry[]>('/vault/mfa'),
+  listMfa: () =>
+    request<{ entries: MfaEntry[] }>('/vault/mfa').then((r) => r.entries),
   createMfa: (entry: Omit<MfaEntry, 'id' | 'created_at'> & { secret: string }) =>
-    request<MfaEntry>('/vault/mfa', { method: 'POST', body: JSON.stringify(entry) }),
+    request<{ entry: MfaEntry }>('/vault/mfa', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }).then((r) => r.entry),
   deleteMfa: (id: string) =>
     request<{ message: string }>(`/vault/mfa/${id}`, { method: 'DELETE' }),
   getTotp: (id: string) => request<TotpCode>(`/vault/mfa/${id}/totp`),
   importMfaUri: (uri: string) =>
-    request<MfaEntry>('/vault/mfa/import', { method: 'POST', body: JSON.stringify({ uri }) }),
+    request<{ entry: MfaEntry }>('/vault/mfa/import', {
+      method: 'POST',
+      body: JSON.stringify({ uri }),
+    }).then((r) => r.entry),
   exportVault: () => request<unknown>('/vault/export'),
+  importVault: (data: unknown) =>
+    request<{ message: string; imported_count: number }>('/vault/import', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

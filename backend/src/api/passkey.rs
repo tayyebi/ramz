@@ -112,11 +112,7 @@ pub async fn list_passkeys(
     let vault = state.vault.read().await;
     let pv = vault.get_vault()?;
 
-    let entries: Vec<PasskeySummary> = pv
-        .passkey_entries
-        .iter()
-        .map(entry_to_summary)
-        .collect();
+    let entries: Vec<PasskeySummary> = pv.passkey_entries.iter().map(entry_to_summary).collect();
 
     tracing::debug!(count = entries.len(), "Passkey entries listed");
 

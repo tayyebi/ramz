@@ -1,9 +1,32 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { copyFileSync, mkdirSync } from 'fs';
+
+const copyExtensionFiles = () => ({
+  name: 'copy-extension-files',
+  closeBundle() {
+    const root = resolve(__dirname);
+    const dist = resolve(__dirname, 'dist');
+    try {
+      copyFileSync(resolve(root, 'manifest.json'), resolve(dist, 'manifest.json'));
+      mkdirSync(resolve(dist, 'icons'), { recursive: true });
+      for (const size of [16, 48, 128]) {
+        copyFileSync(
+          resolve(root, `icons/icon${size}.png`),
+          resolve(dist, `icons/icon${size}.png`)
+        );
+      }
+    } catch (err) {
+      throw new Error(
+        `[copy-extension-files] Failed to copy extension assets: ${(err as Error).message}`
+      );
+    }
+  },
+});
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), copyExtensionFiles()],
   base: './',
   build: {
     outDir: 'dist',

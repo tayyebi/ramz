@@ -48,6 +48,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/vault/passkeys", post(passkey::create_passkey))
         .route("/api/vault/passkeys/:id", get(passkey::get_passkey))
         .route("/api/vault/passkeys/:id", delete(passkey::delete_passkey))
+        .route(
+            "/api/vault/passkeys/:id/use",
+            post(passkey::update_passkey_usage),
+        )
         // Vault
         .route("/api/vault/export", get(vault::export_vault))
         .route("/api/vault/import", post(vault::import_vault))

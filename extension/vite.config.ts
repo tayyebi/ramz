@@ -36,12 +36,16 @@ export default defineConfig({
         popup: resolve(__dirname, 'popup.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
         content: resolve(__dirname, 'src/content/index.ts'),
+        webauthn: resolve(__dirname, 'src/content/webauthn.ts'),
         options: resolve(__dirname, 'options.html'),
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === 'popup' || chunk.name === 'options') {
             return `${chunk.name}/index.js`;
+          }
+          if (chunk.name === 'webauthn') {
+            return 'content/webauthn.js';
           }
           return '[name]/index.js';
         },

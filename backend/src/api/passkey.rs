@@ -196,6 +196,38 @@ pub async fn get_passkey(
     Ok(Json(json!({ "entry": response })))
 }
 
+pub async fn update_passkey_usage(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Value>> {
+    tracing::debug!(%id, "Update passkey usage request");
+
+    extract_session_id(&state, &headers)?;
+
+    let mut vault = state.vault.write().await;
+    let pv = vault.get_vault_mut()?;
+
+    let entry = pv
+        .passkey_entries
+        .iter_mut()
+        .find(|e| e.id == id)
+        .ok_or_else(|| AppError::NotFound("Passkey entry not found".to_string()))?;
+
+    entry.sign_count = entry.sign_count.wrapping_add(1);
+    entry.last_used_at = Some(Utc::now());
+    let updated_sign_count = entry.sign_count;
+
+    pv.metadata.last_modified = Utc::now();
+    vault
+        .save()
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    tracing::info!(%id, sign_count = updated_sign_count, "Passkey usage updated");
+
+    Ok(Json(json!({ "sign_count": updated_sign_count })))
+}
+
 pub async fn delete_passkey(
     State(state): State<AppState>,
     headers: HeaderMap,

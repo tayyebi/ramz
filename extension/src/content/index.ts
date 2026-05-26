@@ -1,4 +1,33 @@
 // Content script - auto-fill and auto-capture
+
+// ---------------------------------------------------------------------------
+// WebAuthn passkey message relay (page ↔ background)
+// ---------------------------------------------------------------------------
+
+window.addEventListener('message', (event: MessageEvent) => {
+  if (event.source !== window) return;
+  const data = event.data as { type?: string; id?: number; payload?: unknown };
+  if (data.type === 'RAMZ_PASSKEY_CREATE' || data.type === 'RAMZ_PASSKEY_GET') {
+    chrome.runtime.sendMessage(
+      { type: data.type, id: data.id, payload: data.payload },
+      (response: { result?: unknown; error?: string } | undefined) => {
+        window.postMessage(
+          {
+            type: 'RAMZ_PASSKEY_RESPONSE',
+            id: data.id,
+            result: response?.result,
+            error: response?.error,
+          },
+          '*',
+        );
+      },
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Login form detection and auto-fill
+// ---------------------------------------------------------------------------
 let isListening = false;
 
 function findLoginForm(): {

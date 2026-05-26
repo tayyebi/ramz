@@ -191,12 +191,51 @@ jobs:
           retention-days: 30
 
   # ──────────────────────────────────────────────
+  # Android APK: pure Java, no Gradle
+  # ──────────────────────────────────────────────
+  android-build:
+    name: Android – build APK
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      BUILD_TOOLS_VER: "34.0.0"
+      PLATFORM_VER: android-28
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android SDK components
+        run: |
+          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager \
+            "build-tools;${BUILD_TOOLS_VER}" \
+            "platforms;${PLATFORM_VER}"
+
+      - name: Build APK
+        run: ./build.sh
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ramz-android-apk
+          path: android/bin/ramz.apk
+          retention-days: 30
+
+  # ──────────────────────────────────────────────
   # Create GitHub Release assets
   # ──────────────────────────────────────────────
   release:
     name: Publish release assets
     if: github.event_name == 'release'
-    needs: [backend-build, extension-build]
+    needs: [backend-build, extension-build, android-build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

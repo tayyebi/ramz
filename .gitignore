@@ -16,6 +16,13 @@ config.toml
 .DS_Store
 Thumbs.db
 
+# Android
+android/obj/
+android/bin/
+android/gen/
+android/classes.dex
+android/ramz.keystore
+
 # Editor
 .vscode/
 .idea/

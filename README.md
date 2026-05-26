@@ -4,6 +4,7 @@ A secure, self-hosted password manager consisting of:
 
 - **Rust backend** — single binary, AES-256-GCM encrypted vault, Argon2id key derivation
 - **Browser extension** — Chrome & Firefox (Manifest V3), React UI
+- **Android app** — pure Java WebView client, no Gradle/Maven (inspired by [android-webclient](https://github.com/tayyebi/android-webclient))
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/18f88b98-1f98-433a-a447-9c20b3923a94" width="392" height="566" alt="Ramz extension screenshot" />
@@ -40,18 +41,35 @@ A secure, self-hosted password manager consisting of:
 
 ## Installation
 
-### Pre-built binaries
+### Release artifacts
 
-Download the latest release binary for your platform from the [Releases](../../releases) page.
+| # | Artifact | Platform |
+|---|----------|----------|
+| 1 | `ramz` (Linux x64) | Server |
+| 2 | `ramz.exe` (Windows x64) | Server |
+| 3 | Chrome extension (`.zip`) | Browser |
+| 4 | Firefox extension (`.xpi`) | Browser |
+| 5 | `ramz.apk` (Android) | Mobile |
+
+Download the latest release from the [Releases](../../releases) page.
 
 ### Build from source
 
 ```bash
-# Prerequisites: Rust stable toolchain
-git clone https://github.com/tayyebi/ramz
-cd ramz/backend
+# Backend (Linux / Windows via cross-compilation)
+cd backend
 cargo build --release
 # Binary: target/release/ramz
+
+# Extension
+cd extension
+npm install && npm run build
+# Output: extension/dist/
+
+# Android (requires JDK 17+ and Android SDK command-line tools, no Gradle)
+cd android
+./build.sh
+# Output: android/bin/ramz.apk
 ```
 
 ---
@@ -197,4 +215,9 @@ npm install
 npm run build       # Production build
 npm run dev         # Watch mode
 npm run lint        # TypeScript check
+
+# Android (pure Java, no Gradle/Maven)
+cd android
+./build.sh          # Build APK with self-signed certificate
+./build.sh clean    # Remove build artifacts
 ```

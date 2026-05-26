@@ -9,7 +9,10 @@ import PasskeyList from './components/PasskeyList';
 import Settings from './components/Settings';
 import PasswordGenerator from './components/PasswordGenerator';
 import { storage } from '../shared/storage';
+import type { StoredData } from '../shared/storage';
 import { api } from '../shared/api';
+import { useConnectionStatus } from '../shared/connectionStatus';
+import { getPendingChanges } from '../shared/offlineCache';
 
 export default function App() {
   const [view, setView] = useState<AppView>('login');
@@ -17,6 +20,16 @@ export default function App() {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [isNewEntry, setIsNewEntry] = useState(false);
+  const { online } = useConnectionStatus();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Track pending changes count
+  useEffect(() => {
+    const refresh = () => void getPendingChanges().then((q) => setPendingCount(q.length));
+    refresh();
+    const interval = setInterval(refresh, 5_000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -27,13 +40,24 @@ export default function App() {
           if (status?.unlocked) {
             setView('dashboard');
           } else {
-            setView('login');
+            // If offline but we have a valid token, go to dashboard with cached data
+            if (!status) {
+              setView('dashboard');
+            } else {
+              setView('login');
+            }
           }
         } else {
           setView('login');
         }
       } catch {
-        setView('login');
+        // If offline but we have cached tokens, allow dashboard access
+        const fallback = await storage.get(['access_token', 'token_expires_at']).catch((): StoredData => ({}));
+        if (fallback.access_token && fallback.token_expires_at && Date.now() < fallback.token_expires_at) {
+          setView('dashboard');
+        } else {
+          setView('login');
+        }
       } finally {
         setIsLoading(false);
       }
@@ -92,6 +116,11 @@ export default function App() {
 
   return (
     <div className="app">
+      {!online && (
+        <div className="offline-banner">
+          ⚡ Offline mode{pendingCount > 0 ? ` · ${pendingCount} pending change${pendingCount > 1 ? 's' : ''}` : ''}
+        </div>
+      )}
       <div className="header">
         <h1>🔐 Ramz</h1>
         <div className="header-actions">

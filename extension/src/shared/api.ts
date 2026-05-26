@@ -222,6 +222,8 @@ export const api = {
     request<{ entry: PasskeyEntry }>(`/vault/passkeys/${id}`).then((r) => r.entry),
   deletePasskey: (id: string) =>
     request<{ message: string }>(`/vault/passkeys/${id}`, { method: 'DELETE' }),
+  updatePasskeyUsage: (id: string) =>
+    request<{ sign_count: number }>(`/vault/passkeys/${id}/use`, { method: 'POST' }),
   exportVault: () => request<unknown>('/vault/export'),
   importVault: (data: unknown) =>
     request<{ message: string; imported_count: number }>('/vault/import', {

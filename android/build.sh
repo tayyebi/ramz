@@ -23,7 +23,7 @@ PLATFORM_VER="${PLATFORM_VER:-android-28}"
 
 BT="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_VER"
 AAPT="$BT/aapt"
-DX="$BT/dx"
+D8="$BT/d8"
 ZIPALIGN="$BT/zipalign"
 APKSIGNER="$BT/apksigner"
 PLATFORM="$ANDROID_SDK_ROOT/platforms/$PLATFORM_VER/android.jar"
@@ -81,7 +81,8 @@ build() {
         -I "$PLATFORM"
 
     echo "==> Creating classes.dex …"
-    $DX --dex --output=classes.dex obj
+    find obj -name '*.class' > /tmp/ramz_classes.txt
+    $D8 --lib "$PLATFORM" --output . @/tmp/ramz_classes.txt
     $AAPT add bin/app.unaligned.apk classes.dex
 
     echo "==> Signing APK …"

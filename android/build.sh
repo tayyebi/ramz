@@ -85,6 +85,9 @@ build() {
     $D8 --lib "$PLATFORM" --output . @/tmp/ramz_classes.txt
     $AAPT add bin/app.unaligned.apk classes.dex
 
+    echo "==> Aligning APK …"
+    $ZIPALIGN -f 4 bin/app.unaligned.apk bin/ramz.apk
+
     echo "==> Signing APK …"
     $APKSIGNER sign \
         --ks "$KEYSTORE" \
@@ -92,10 +95,7 @@ build() {
         --v1-signing-enabled true \
         --v2-signing-enabled true \
         --ks-pass "pass:$KS_PASS" \
-        bin/app.unaligned.apk
-
-    echo "==> Aligning APK …"
-    $ZIPALIGN -f 4 bin/app.unaligned.apk bin/ramz.apk
+        bin/ramz.apk
 
     echo "==> Verifying …"
     $APKSIGNER verify --print-certs -v bin/ramz.apk
